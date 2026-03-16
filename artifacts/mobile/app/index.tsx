@@ -19,12 +19,15 @@ import { router, useFocusEffect } from "expo-router";
 import Colors from "@/constants/colors";
 import { useGames, type Game } from "@/context/GamesContext";
 import { useLocalGameContext } from "@/context/LocalGameContext";
+import { useAuth } from "@/context/AuthContext";
 import GameCard from "@/components/GameCard";
+import PlayerStats from "@/components/PlayerStats";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { games, isLoading, error, fetchGames, createGame, deleteGame } = useGames();
   const { localGames, deleteLocalGame } = useLocalGameContext();
+  const { user, setShowLoginModal } = useAuth();
 
   const [showNewGame, setShowNewGame] = useState(false);
   const [whiteName, setWhiteName] = useState("");
@@ -37,6 +40,12 @@ export default function HomeScreen() {
       fetchGames();
     }, [fetchGames])
   );
+
+  const openNewGame = useCallback(() => {
+    setWhiteName(user?.username ?? "");
+    setBlackName("");
+    setShowNewGame(true);
+  }, [user]);
 
   const handleCreate = async () => {
     const wName = whiteName.trim() || "White";
@@ -81,10 +90,7 @@ export default function HomeScreen() {
 
   const startComputerGame = (playerColor: "white" | "black") => {
     setShowColorPicker(false);
-    router.push({
-      pathname: "/local-game",
-      params: { playerColor },
-    });
+    router.push({ pathname: "/local-game", params: { playerColor } });
   };
 
   const activeGames = games.filter((g) => g.status === "active");
@@ -96,55 +102,33 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
+      {/* ─── Header ─── */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.logoRow}>
+          <View style={styles.logoIcon}>
+            <Text style={styles.logoKing}>♔</Text>
+          </View>
           <Text style={styles.title}>Chess</Text>
-          <Text style={styles.subtitle}>
-            {games.length + localGames.length}{" "}
-            {games.length + localGames.length === 1 ? "game" : "games"}
-          </Text>
         </View>
-        <TouchableOpacity
-          style={styles.newBtn}
-          onPress={() => setShowNewGame(true)}
-          activeOpacity={0.85}
-        >
-          <Feather name="plus" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
+
+        {user ? (
+          <TouchableOpacity
+            style={styles.avatarBtn}
+            onPress={() => setShowLoginModal(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.avatarBtnText}>{user.avatar}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.signInBtn}
+            onPress={() => setShowLoginModal(true)}
+          >
+            <Feather name="user" size={16} color={Colors.light.primary} />
+            <Text style={styles.signInText}>Sign In</Text>
+          </TouchableOpacity>
+        )}
       </View>
-
-      <View style={styles.modesRow}>
-        <TouchableOpacity
-          style={[styles.modeCard, styles.modeCardAI]}
-          onPress={() => setShowColorPicker(true)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.modeIconBg}>
-            <Feather name="cpu" size={22} color="#FFFFFF" />
-          </View>
-          <Text style={[styles.modeTitle, styles.modeTitleAI]}>vs Computer</Text>
-          <Text style={[styles.modeSub, styles.modeSubAI]}>Offline · AI opponent</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.modeCard, styles.modeCardLocal]}
-          onPress={() => setShowNewGame(true)}
-          activeOpacity={0.85}
-        >
-          <View style={[styles.modeIconBg, { backgroundColor: `${Colors.light.accent}CC` }]}>
-            <Feather name="users" size={22} color="#FFFFFF" />
-          </View>
-          <Text style={styles.modeTitle}>2 Players</Text>
-          <Text style={styles.modeSub}>Pass & play online</Text>
-        </TouchableOpacity>
-      </View>
-
-      {error && (
-        <TouchableOpacity style={styles.errorBanner} onPress={fetchGames}>
-          <Feather name="wifi-off" size={16} color={Colors.light.danger} />
-          <Text style={styles.errorText}>Online games unavailable — tap to retry</Text>
-        </TouchableOpacity>
-      )}
 
       {isLoading && games.length === 0 && localGames.length === 0 ? (
         <View style={styles.loadingContainer}>
@@ -156,6 +140,48 @@ export default function HomeScreen() {
           renderItem={null}
           ListHeaderComponent={
             <>
+              {/* Player Stats Card */}
+              {user && <PlayerStats />}
+
+              {/* Mode Cards */}
+              <View style={styles.modesRow}>
+                <TouchableOpacity
+                  style={[styles.modeCard, styles.modeCardAI]}
+                  onPress={() => setShowColorPicker(true)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.modeIconBg}>
+                    <Feather name="cpu" size={22} color="#FFFFFF" />
+                  </View>
+                  <Text style={[styles.modeTitle, { color: "#FFFFFF" }]}>vs Computer</Text>
+                  <Text style={[styles.modeSub, { color: "rgba(255,255,255,0.75)" }]}>
+                    Offline · AI opponent
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modeCard, styles.modeCardLocal]}
+                  onPress={openNewGame}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.modeIconBg, { backgroundColor: `${Colors.light.accent}CC` }]}>
+                    <Feather name="users" size={22} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.modeTitle}>2 Players</Text>
+                  <Text style={styles.modeSub}>Pass & play online</Text>
+                </TouchableOpacity>
+              </View>
+
+              {error && (
+                <TouchableOpacity style={styles.errorBanner} onPress={fetchGames}>
+                  <Feather name="wifi-off" size={16} color={Colors.light.danger} />
+                  <Text style={styles.errorText}>
+                    Online games unavailable — tap to retry
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Active computer games */}
               {activeLocalGames.length > 0 && (
                 <>
                   <Text style={styles.sectionTitle}>Computer Games</Text>
@@ -174,8 +200,7 @@ export default function HomeScreen() {
                         </View>
                         <View>
                           <Text style={styles.localCardTitle}>
-                            You (
-                            {g.playerColor === "white" ? "White" : "Black"}) vs Computer
+                            You ({g.playerColor === "white" ? "White" : "Black"}) vs Computer
                           </Text>
                           <Text style={styles.localCardSub}>
                             {g.moves.length} moves ·{" "}
@@ -194,48 +219,71 @@ export default function HomeScreen() {
                 </>
               )}
 
+              {/* Finished computer games */}
               {finishedLocalGames.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Completed (Offline)</Text>
-                  {finishedLocalGames.map((g) => (
-                    <TouchableOpacity
-                      key={g.id}
-                      style={[styles.localCard, { opacity: 0.7 }]}
-                      onPress={() =>
-                        router.push({ pathname: "/local-game", params: { id: g.id } })
-                      }
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.localCardLeft}>
-                        <View style={styles.localCardIcon}>
-                          <Feather name="cpu" size={16} color={Colors.light.textSecondary} />
-                        </View>
-                        <View>
-                          <Text style={styles.localCardTitle}>
-                            You (
-                            {g.playerColor === "white" ? "White" : "Black"}) vs Computer
-                          </Text>
-                          <Text style={styles.localCardSub}>
-                            {g.moves.length} moves ·{" "}
-                            {g.status === "draw" || g.status === "stalemate"
-                              ? "Draw"
-                              : g.status === "white_wins"
-                              ? "White won"
-                              : "Black won"}
-                          </Text>
-                        </View>
-                      </View>
+                  <Text style={styles.sectionTitle}>Completed vs Computer</Text>
+                  {finishedLocalGames.map((g) => {
+                    const playerWon =
+                      (g.status === "white_wins" && g.playerColor === "white") ||
+                      (g.status === "black_wins" && g.playerColor === "black");
+                    const isDraw = g.status === "draw" || g.status === "stalemate";
+                    return (
                       <TouchableOpacity
-                        onPress={() => handleDeleteLocal(g.id)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        key={g.id}
+                        style={styles.localCard}
+                        onPress={() =>
+                          router.push({ pathname: "/local-game", params: { id: g.id } })
+                        }
+                        activeOpacity={0.85}
                       >
-                        <Feather name="trash-2" size={16} color={Colors.light.textSecondary} />
+                        <View style={styles.localCardLeft}>
+                          <View
+                            style={[
+                              styles.localCardIcon,
+                              {
+                                backgroundColor: playerWon
+                                  ? `${Colors.light.primary}15`
+                                  : isDraw
+                                  ? `${Colors.light.textSecondary}10`
+                                  : "#FFF0EE",
+                              },
+                            ]}
+                          >
+                            <Feather
+                              name={playerWon ? "award" : isDraw ? "minus" : "cpu"}
+                              size={16}
+                              color={
+                                playerWon
+                                  ? Colors.light.primary
+                                  : isDraw
+                                  ? Colors.light.textSecondary
+                                  : Colors.light.danger
+                              }
+                            />
+                          </View>
+                          <View>
+                            <Text style={styles.localCardTitle}>
+                              {playerWon ? "You won" : isDraw ? "Draw" : "Computer won"}
+                            </Text>
+                            <Text style={styles.localCardSub}>
+                              {g.moves.length} moves · You played {g.playerColor}
+                            </Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteLocal(g.id)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Feather name="trash-2" size={16} color={Colors.light.textSecondary} />
+                        </TouchableOpacity>
                       </TouchableOpacity>
-                    </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </>
               )}
 
+              {/* Active online 2-player games */}
               {activeGames.length > 0 && (
                 <>
                   <Text style={styles.sectionTitle}>Online Games</Text>
@@ -283,12 +331,12 @@ export default function HomeScreen() {
             { paddingBottom: (Platform.OS === "web" ? 34 : insets.bottom) + 20 },
           ]}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={!!(games.length || localGames.length)}
+          scrollEnabled={!!(games.length || localGames.length) || !!user}
           keyExtractor={() => "list"}
         />
       )}
 
-      {/* Color Picker Modal */}
+      {/* ─── Color Picker Modal ─── */}
       <Modal
         visible={showColorPicker}
         animationType="slide"
@@ -335,7 +383,7 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* 2-Player Game Modal */}
+      {/* ─── 2-Player Game Modal ─── */}
       <Modal
         visible={showNewGame}
         animationType="slide"
@@ -362,7 +410,7 @@ export default function HomeScreen() {
                 returnKeyType="next"
               />
             </View>
-            <View style={styles.divider} />
+            <View style={styles.inputDivider} />
             <View style={styles.playerInputRow}>
               <View style={[styles.colorIndicator, { backgroundColor: "#1A1A2E" }]} />
               <TextInput
@@ -419,26 +467,66 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
-  title: {
-    fontSize: 32,
-    fontFamily: "Inter_700Bold",
-    color: Colors.light.text,
+  logoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    color: Colors.light.textSecondary,
-    marginTop: 2,
-  },
-  newBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  logoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     backgroundColor: Colors.light.primary,
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0px 4px 8px rgba(45,106,79,0.3)",
-    elevation: 4,
+  },
+  logoKing: {
+    fontSize: 22,
+    color: "#FFFFFF",
+    lineHeight: 30,
+  },
+  title: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    color: Colors.light.text,
+    letterSpacing: -0.5,
+  },
+  avatarBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.light.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarBtnText: {
+    fontSize: 22,
+    lineHeight: 30,
+    color: "#FFFFFF",
+  },
+  signInBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: `${Colors.light.primary}14`,
+    borderWidth: 1,
+    borderColor: `${Colors.light.primary}30`,
+  },
+  signInText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
+    color: Colors.light.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listContent: {
+    paddingTop: 4,
   },
   modesRow: {
     flexDirection: "row",
@@ -475,16 +563,10 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     marginBottom: 3,
   },
-  modeTitleAI: {
-    color: "#FFFFFF",
-  },
   modeSub: {
     fontFamily: "Inter_400Regular",
     fontSize: 12,
     color: Colors.light.textSecondary,
-  },
-  modeSubAI: {
-    color: "rgba(255,255,255,0.7)",
   },
   errorBanner: {
     flexDirection: "row",
@@ -501,14 +583,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.light.danger,
     flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listContent: {
-    paddingTop: 4,
   },
   sectionTitle: {
     fontSize: 13,
@@ -531,7 +605,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    boxShadow: "0px 2px 6px rgba(0,0,0,0.05)",
   },
   localCardLeft: {
     flexDirection: "row",
@@ -671,7 +744,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
   },
-  divider: {
+  inputDivider: {
     height: 1,
     backgroundColor: Colors.light.separator,
     marginLeft: 46,
@@ -688,8 +761,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     marginBottom: 12,
-    boxShadow: "0px 4px 8px rgba(45,106,79,0.3)",
-    elevation: 4,
   },
   createBtnDisabled: {
     opacity: 0.6,

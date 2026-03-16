@@ -16,6 +16,8 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GamesProvider } from "@/context/GamesContext";
 import { LocalGameProvider } from "@/context/LocalGameContext";
+import { AuthProvider } from "@/context/AuthContext";
+import LoginModal from "@/components/LoginModal";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -23,25 +25,28 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="game/[id]"
-        options={{
-          headerShown: false,
-          presentation: "card",
-          animation: "slide_from_right",
-        }}
-      />
-      <Stack.Screen
-        name="local-game"
-        options={{
-          headerShown: false,
-          presentation: "card",
-          animation: "slide_from_right",
-        }}
-      />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="game/[id]"
+          options={{
+            headerShown: false,
+            presentation: "card",
+            animation: "slide_from_right",
+          }}
+        />
+        <Stack.Screen
+          name="local-game"
+          options={{
+            headerShown: false,
+            presentation: "card",
+            animation: "slide_from_right",
+          }}
+        />
+      </Stack>
+      <LoginModal />
+    </>
   );
 }
 
@@ -67,11 +72,13 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <GamesProvider>
-                <LocalGameProvider>
-                  <RootLayoutNav />
-                </LocalGameProvider>
-              </GamesProvider>
+              <AuthProvider>
+                <GamesProvider>
+                  <LocalGameProvider>
+                    <RootLayoutNav />
+                  </LocalGameProvider>
+                </GamesProvider>
+              </AuthProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

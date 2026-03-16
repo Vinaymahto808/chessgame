@@ -20,6 +20,7 @@ import { useLocalGameContext, type LocalGame, type LocalMove } from "@/context/L
 import ChessBoard from "@/components/ChessBoard";
 import MoveHistory from "@/components/MoveHistory";
 import { getBestMove } from "@/utils/chessAI";
+import { useAuth } from "@/context/AuthContext";
 
 function generateId(): string {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -33,6 +34,7 @@ export default function LocalGameScreen() {
   }>();
 
   const { saveGame, getGame } = useLocalGameContext();
+  const { user } = useAuth();
 
   const [game, setGame] = useState<LocalGame | null>(null);
   const [isAIThinking, setIsAIThinking] = useState(false);
@@ -56,6 +58,7 @@ export default function LocalGameScreen() {
     const newGame: LocalGame = {
       id: generateId(),
       playerColor,
+      playerName: user?.username,
       fen: new Chess().fen(),
       status: "active",
       currentTurn: "white",
@@ -291,7 +294,7 @@ export default function LocalGameScreen() {
             bottom={false}
           />
           <PlayerChip
-            label="You"
+            label={game.playerName ?? "You"}
             isAI={false}
             isActive={!isGameOver && isPlayerTurn}
             color={game.playerColor}

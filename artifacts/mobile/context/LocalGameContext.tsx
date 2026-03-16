@@ -22,6 +22,7 @@ export interface LocalMove {
 export interface LocalGame {
   id: string;
   playerColor: "white" | "black";
+  playerName?: string;
   fen: string;
   status: "active" | "white_wins" | "black_wins" | "draw" | "stalemate";
   currentTurn: "white" | "black";

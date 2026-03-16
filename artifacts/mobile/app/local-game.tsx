@@ -256,10 +256,12 @@ export default function LocalGameScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
           style={styles.headerBtn}
+          activeOpacity={0.7}
         >
-          <Feather name="arrow-left" size={22} color={Colors.light.text} />
+          <Feather name="chevron-left" size={22} color={Colors.light.text} />
+          <Text style={styles.headerBtnLabel}>Back</Text>
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ComponentType } from "react";
+import PrivacyPolicy from "./components/PrivacyPolicy";
 
 import { modules as discoveredModules } from "./.generated/mockup-components";
 
@@ -130,6 +131,11 @@ function getPreviewPath(): string | null {
 
 function App() {
   const previewPath = getPreviewPath();
+
+  // Privacy policy route
+  if (window.location.pathname === "/privacy" || window.location.pathname === "/privacy/") {
+    return <PrivacyPolicy />;
+  }
 
   if (previewPath) {
     return (

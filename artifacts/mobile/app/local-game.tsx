@@ -28,10 +28,14 @@ function generateId(): string {
 
 export default function LocalGameScreen() {
   const insets = useSafeAreaInsets();
-  const { id, playerColor: paramColor } = useLocalSearchParams<{
+  const { id, playerColor: paramColor, whiteName, blackName } = useLocalSearchParams<{
     id?: string;
     playerColor?: string;
+    whiteName?: string;
+    blackName?: string;
   }>();
+
+  const isTwoPlayer = !!(whiteName || blackName);
 
   const { saveGame, getGame } = useLocalGameContext();
   const { user } = useAuth();
@@ -50,15 +54,15 @@ export default function LocalGameScreen() {
         setGame(existing);
         const lastM = existing.moves[existing.moves.length - 1];
         if (lastM) setLastMove({ from: lastM.from, to: lastM.to });
-        if (existing.playerColor === "black") setFlipped(true);
+        if (existing.playerColor === "black" && !isTwoPlayer) setFlipped(true);
         return;
       }
     }
     const playerColor = (paramColor === "black" ? "black" : "white") as "white" | "black";
     const newGame: LocalGame = {
-      id: generateId(),
+      id: id ?? generateId(),
       playerColor,
-      playerName: user?.username,
+      playerName: isTwoPlayer ? (whiteName ?? "White") : user?.username,
       fen: new Chess().fen(),
       status: "active",
       currentTurn: "white",
@@ -68,11 +72,12 @@ export default function LocalGameScreen() {
     };
     setGame(newGame);
     saveGame(newGame);
-    if (playerColor === "black") setFlipped(true);
+    if (playerColor === "black" && !isTwoPlayer) setFlipped(true);
   }, []);
 
   useEffect(() => {
     if (!game || game.status !== "active") return;
+    if (isTwoPlayer) return;
     const aiColor = game.playerColor === "white" ? "black" : "white";
     if (game.currentTurn !== aiColor) return;
 
@@ -157,11 +162,13 @@ export default function LocalGameScreen() {
     (from: string, to: string, promotion?: string) => {
       if (!game) return;
       if (game.status !== "active") return;
-      const aiColor = game.playerColor === "white" ? "black" : "white";
-      if (game.currentTurn === aiColor) return;
+      if (!isTwoPlayer) {
+        const aiColor = game.playerColor === "white" ? "black" : "white";
+        if (game.currentTurn === aiColor) return;
+      }
       applyMove(from, to, promotion);
     },
-    [game, applyMove]
+    [game, applyMove, isTwoPlayer]
   );
 
   const handleNewGame = () => {
@@ -203,39 +210,62 @@ export default function LocalGameScreen() {
   const isInCheck = chess.inCheck();
   const isGameOver = game.status !== "active";
   const aiColor = game.playerColor === "white" ? "black" : "white";
-  const isPlayerTurn = game.currentTurn === game.playerColor;
+  const isPlayerTurn = isTwoPlayer ? true : game.currentTurn === game.playerColor;
+  const whiteLabel = isTwoPlayer ? (whiteName ?? "White") : (game.playerColor === "white" ? (game.playerName ?? "You") : "Computer");
+  const blackLabel = isTwoPlayer ? (blackName ?? "Black") : (game.playerColor === "black" ? (game.playerName ?? "You") : "Computer");
 
   const topPad = Platform.OS === "web" ? Math.max(insets.top, 67) : insets.top;
   const bottomPad = Platform.OS === "web" ? Math.max(insets.bottom, 34) : insets.bottom;
 
   const getStatusMessage = () => {
+    if (game.status === "active" && isInCheck) {
+      if (isTwoPlayer) {
+        const inCheckPlayer = game.currentTurn === "white" ? (whiteName ?? "White") : (blackName ?? "Black");
+        return { text: `${inCheckPlayer} is in check!`, color: Colors.light.danger };
+      }
+      return {
+        text: isPlayerTurn ? "You are in check!" : "Computer is in check!",
+        color: Colors.light.danger,
+      };
+    }
+    return null;
+  };
+
+  const getResultCard = () => {
+    if (isTwoPlayer) {
+      switch (game.status) {
+        case "white_wins":
+          return { icon: "award" as const, label: `${whiteName ?? "White"} wins!`, sub: "Checkmate", color: Colors.light.primary };
+        case "black_wins":
+          return { icon: "award" as const, label: `${blackName ?? "Black"} wins!`, sub: "Checkmate", color: Colors.light.primary };
+        case "draw":
+          return { icon: "minus" as const, label: "It's a draw", sub: "Game drawn", color: Colors.light.textSecondary };
+        case "stalemate":
+          return { icon: "minus" as const, label: "Stalemate", sub: "Draw by stalemate", color: Colors.light.textSecondary };
+        default:
+          return null;
+      }
+    }
     switch (game.status) {
-      case "white_wins":
-        return {
-          text: game.playerColor === "white" ? "You win! 🎉" : "Computer wins",
-          color: game.playerColor === "white" ? Colors.light.primary : Colors.light.textSecondary,
-        };
-      case "black_wins":
-        return {
-          text: game.playerColor === "black" ? "You win! 🎉" : "Computer wins",
-          color: game.playerColor === "black" ? Colors.light.primary : Colors.light.textSecondary,
-        };
+      case "white_wins": {
+        const playerWon = game.playerColor === "white";
+        return { icon: playerWon ? "award" : "cpu" as const, label: playerWon ? "You win!" : "Computer wins", sub: playerWon ? "Checkmate — well played!" : "Checkmate", color: playerWon ? Colors.light.primary : Colors.light.textSecondary };
+      }
+      case "black_wins": {
+        const playerWon = game.playerColor === "black";
+        return { icon: playerWon ? "award" : "cpu" as const, label: playerWon ? "You win!" : "Computer wins", sub: playerWon ? "Checkmate — well played!" : "Checkmate", color: playerWon ? Colors.light.primary : Colors.light.textSecondary };
+      }
       case "draw":
-        return { text: "It's a draw", color: Colors.light.textSecondary };
+        return { icon: "minus" as const, label: "It's a draw", sub: "Game drawn", color: Colors.light.textSecondary };
       case "stalemate":
-        return { text: "Stalemate — draw", color: Colors.light.textSecondary };
+        return { icon: "minus" as const, label: "Stalemate", sub: "Draw by stalemate", color: Colors.light.textSecondary };
       default:
-        if (isInCheck) {
-          return {
-            text: isPlayerTurn ? "You are in check!" : "Computer is in check!",
-            color: Colors.light.danger,
-          };
-        }
         return null;
     }
   };
 
   const statusMsg = getStatusMessage();
+  const resultCard = getResultCard();
 
   const movesForHistory = game.moves.map((m, i) => ({
     id: String(i),
@@ -265,9 +295,11 @@ export default function LocalGameScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>vs Computer</Text>
+          <Text style={styles.headerTitle}>{isTwoPlayer ? "2 Players" : "vs Computer"}</Text>
           <Text style={styles.headerSub}>
-            You play {game.playerColor} · {game.moves.length} moves
+            {isTwoPlayer
+              ? `${whiteLabel} vs ${blackLabel} · ${game.moves.length} moves`
+              : `You play ${game.playerColor} · ${game.moves.length} moves`}
           </Text>
         </View>
 
@@ -287,20 +319,20 @@ export default function LocalGameScreen() {
       >
         <View style={styles.opponentsBar}>
           <PlayerChip
-            label="Computer"
-            isAI
-            isActive={!isGameOver && !isPlayerTurn}
-            color={aiColor}
-            isThinking={isAIThinking}
+            label={whiteLabel}
+            isAI={!isTwoPlayer && game.playerColor !== "white"}
+            isActive={!isGameOver && game.currentTurn === "white"}
+            color="white"
+            isThinking={!isTwoPlayer && isAIThinking && aiColor === "white"}
             thinkingAnim={thinkingDot}
             bottom={false}
           />
           <PlayerChip
-            label={game.playerName ?? "You"}
-            isAI={false}
-            isActive={!isGameOver && isPlayerTurn}
-            color={game.playerColor}
-            isThinking={false}
+            label={blackLabel}
+            isAI={!isTwoPlayer && game.playerColor !== "black"}
+            isActive={!isGameOver && game.currentTurn === "black"}
+            color="black"
+            isThinking={!isTwoPlayer && isAIThinking && aiColor === "black"}
             thinkingAnim={thinkingDot}
             bottom
           />
@@ -311,11 +343,19 @@ export default function LocalGameScreen() {
             <Text style={[styles.statusText, { color: statusMsg.color }]}>
               {statusMsg.text}
             </Text>
-            {isGameOver && (
-              <TouchableOpacity style={styles.rematchBtn} onPress={handleNewGame}>
-                <Text style={styles.rematchText}>Play Again</Text>
-              </TouchableOpacity>
-            )}
+          </View>
+        )}
+
+        {resultCard && (
+          <View style={[styles.resultCard, { borderColor: `${resultCard.color}40` }]}>
+            <View style={[styles.resultIconWrap, { backgroundColor: `${resultCard.color}18` }]}>
+              <Feather name={resultCard.icon} size={28} color={resultCard.color} />
+            </View>
+            <Text style={[styles.resultLabel, { color: resultCard.color }]}>{resultCard.label}</Text>
+            <Text style={styles.resultSub}>{resultCard.sub}</Text>
+            <TouchableOpacity style={styles.rematchBtn} onPress={handleNewGame}>
+              <Text style={styles.rematchText}>Play Again</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -530,6 +570,35 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
+  },
+  resultCard: {
+    marginHorizontal: 8,
+    marginBottom: 12,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.light.card,
+    borderWidth: 1.5,
+  },
+  resultIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  resultLabel: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+  },
+  resultSub: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+    marginBottom: 8,
   },
   rematchBtn: {
     backgroundColor: Colors.light.primary,

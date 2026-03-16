@@ -9,7 +9,6 @@ import {
   TextInput,
   Alert,
   Platform,
-  ActivityIndicator,
   KeyboardAvoidingView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,21 +17,21 @@ import { router, useFocusEffect } from "expo-router";
 
 import Colors from "@/constants/colors";
 import { useGames, type Game } from "@/context/GamesContext";
-import { useLocalGameContext } from "@/context/LocalGameContext";
+import { useLocalGameContext, type LocalGame } from "@/context/LocalGameContext";
 import { useAuth } from "@/context/AuthContext";
 import GameCard from "@/components/GameCard";
 import PlayerStats from "@/components/PlayerStats";
+import { Chess } from "chess.js";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { games, isLoading, error, fetchGames, createGame, deleteGame } = useGames();
-  const { localGames, deleteLocalGame } = useLocalGameContext();
+  const { games, isLoading, error, fetchGames, deleteGame } = useGames();
+  const { localGames, deleteLocalGame, saveGame } = useLocalGameContext();
   const { user, setShowLoginModal } = useAuth();
 
   const [showNewGame, setShowNewGame] = useState(false);
   const [whiteName, setWhiteName] = useState("");
   const [blackName, setBlackName] = useState("");
-  const [creating, setCreating] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
   useFocusEffect(
@@ -47,21 +46,25 @@ export default function HomeScreen() {
     setShowNewGame(true);
   }, [user]);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     const wName = whiteName.trim() || "White";
     const bName = blackName.trim() || "Black";
-    setCreating(true);
-    try {
-      const game = await createGame(wName, bName);
-      setShowNewGame(false);
-      setWhiteName("");
-      setBlackName("");
-      router.push({ pathname: "/game/[id]", params: { id: game.id } });
-    } catch {
-      Alert.alert("Error", "Could not create game. Check your connection.");
-    } finally {
-      setCreating(false);
-    }
+    const newGame: LocalGame = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      playerColor: "white",
+      playerName: wName,
+      fen: new Chess().fen(),
+      status: "active",
+      currentTurn: "white",
+      moves: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    saveGame(newGame);
+    setShowNewGame(false);
+    setWhiteName("");
+    setBlackName("");
+    router.push({ pathname: "/local-game", params: { id: newGame.id, whiteName: wName, blackName: bName } });
   };
 
   const handleDelete = useCallback(
@@ -132,7 +135,7 @@ export default function HomeScreen() {
 
       {isLoading && games.length === 0 && localGames.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Colors.light.primary} size="large" />
+          <Text style={styles.loadingText}>Loading…</Text>
         </View>
       ) : (
         <FlatList
@@ -186,15 +189,14 @@ export default function HomeScreen() {
                 <>
                   <Text style={styles.sectionTitle}>Computer Games</Text>
                   {activeLocalGames.map((g) => (
-                    <TouchableOpacity
-                      key={g.id}
-                      style={styles.localCard}
-                      onPress={() =>
-                        router.push({ pathname: "/local-game", params: { id: g.id } })
-                      }
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.localCardLeft}>
+                    <View key={g.id} style={styles.localCard}>
+                      <TouchableOpacity
+                        style={styles.localCardLeft}
+                        onPress={() =>
+                          router.push({ pathname: "/local-game", params: { id: g.id } })
+                        }
+                        activeOpacity={0.85}
+                      >
                         <View style={styles.localCardIcon}>
                           <Feather name="cpu" size={16} color={Colors.light.primary} />
                         </View>
@@ -207,14 +209,14 @@ export default function HomeScreen() {
                             {g.currentTurn === g.playerColor ? "Your turn" : "Computer's turn"}
                           </Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDeleteLocal(g.id)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                       >
                         <Feather name="trash-2" size={16} color={Colors.light.textSecondary} />
                       </TouchableOpacity>
-                    </TouchableOpacity>
+                    </View>
                   ))}
                 </>
               )}
@@ -229,15 +231,14 @@ export default function HomeScreen() {
                       (g.status === "black_wins" && g.playerColor === "black");
                     const isDraw = g.status === "draw" || g.status === "stalemate";
                     return (
-                      <TouchableOpacity
-                        key={g.id}
-                        style={styles.localCard}
-                        onPress={() =>
-                          router.push({ pathname: "/local-game", params: { id: g.id } })
-                        }
-                        activeOpacity={0.85}
-                      >
-                        <View style={styles.localCardLeft}>
+                      <View key={g.id} style={styles.localCard}>
+                        <TouchableOpacity
+                          style={styles.localCardLeft}
+                          onPress={() =>
+                            router.push({ pathname: "/local-game", params: { id: g.id } })
+                          }
+                          activeOpacity={0.85}
+                        >
                           <View
                             style={[
                               styles.localCardIcon,
@@ -270,14 +271,14 @@ export default function HomeScreen() {
                               {g.moves.length} moves · You played {g.playerColor}
                             </Text>
                           </View>
-                        </View>
+                        </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteLocal(g.id)}
                           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                         >
                           <Feather name="trash-2" size={16} color={Colors.light.textSecondary} />
                         </TouchableOpacity>
-                      </TouchableOpacity>
+                      </View>
                     );
                   })}
                 </>
@@ -426,16 +427,11 @@ export default function HomeScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.createBtn, creating && styles.createBtnDisabled]}
+            style={styles.createBtn}
             onPress={handleCreate}
-            disabled={creating}
             activeOpacity={0.85}
           >
-            {creating ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.createBtnText}>Start Game</Text>
-            )}
+            <Text style={styles.createBtnText}>Start Game</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -524,6 +520,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: "Inter_400Regular",
+    color: Colors.light.textSecondary,
   },
   listContent: {
     paddingTop: 4,

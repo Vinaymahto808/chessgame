@@ -87,24 +87,29 @@ export default function GameScreen() {
       : game.blackPlayerName;
 
   const getStatusMessage = () => {
+    if (!isGameOver && isInCheck) {
+      return { text: `${turnDisplayName} is in check!`, color: Colors.light.danger, isResult: false };
+    }
+    return null;
+  };
+
+  const getResultCard = () => {
     switch (game.status) {
       case "white_wins":
-        return { text: `${game.whitePlayerName} wins!`, color: Colors.light.accent };
+        return { winner: game.whitePlayerName, loser: game.blackPlayerName, icon: "award" as const, label: "wins by checkmate", color: Colors.light.primary };
       case "black_wins":
-        return { text: `${game.blackPlayerName} wins!`, color: Colors.light.text };
+        return { winner: game.blackPlayerName, loser: game.whitePlayerName, icon: "award" as const, label: "wins by checkmate", color: Colors.light.primary };
       case "draw":
-        return { text: "Game drawn", color: Colors.light.textSecondary };
+        return { winner: null, loser: null, icon: "minus" as const, label: "Game drawn", color: Colors.light.textSecondary };
       case "stalemate":
-        return { text: "Stalemate — draw", color: Colors.light.textSecondary };
+        return { winner: null, loser: null, icon: "minus" as const, label: "Stalemate — draw", color: Colors.light.textSecondary };
       default:
-        if (isInCheck) {
-          return { text: `${turnDisplayName} is in check!`, color: Colors.light.danger };
-        }
         return null;
     }
   };
 
   const statusMsg = getStatusMessage();
+  const resultCard = getResultCard();
 
   return (
     <View style={[styles.container, { paddingTop: topPad }]}>
@@ -163,15 +168,29 @@ export default function GameScreen() {
         </View>
 
         {statusMsg && (
-          <View
-            style={[
-              styles.statusBanner,
-              { backgroundColor: `${statusMsg.color}18` },
-            ]}
-          >
+          <View style={[styles.statusBanner, { backgroundColor: `${statusMsg.color}18` }]}>
             <Text style={[styles.statusBannerText, { color: statusMsg.color }]}>
               {statusMsg.text}
             </Text>
+          </View>
+        )}
+
+        {resultCard && (
+          <View style={[styles.resultCard, { borderColor: `${resultCard.color}40` }]}>
+            <View style={[styles.resultIconWrap, { backgroundColor: `${resultCard.color}18` }]}>
+              <Feather name={resultCard.icon} size={28} color={resultCard.color} />
+            </View>
+            {resultCard.winner ? (
+              <>
+                <Text style={[styles.resultWinner, { color: resultCard.color }]}>
+                  {resultCard.winner}
+                </Text>
+                <Text style={styles.resultLabel}>{resultCard.label}</Text>
+                <Text style={styles.resultLoser}>{resultCard.loser} loses</Text>
+              </>
+            ) : (
+              <Text style={[styles.resultLabel, styles.resultLabelLarge]}>{resultCard.label}</Text>
+            )}
           </View>
         )}
 
@@ -374,6 +393,44 @@ const styles = StyleSheet.create({
   statusBannerText: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 15,
+  },
+  resultCard: {
+    marginHorizontal: 8,
+    marginBottom: 12,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.light.card,
+    borderWidth: 1.5,
+  },
+  resultIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+  },
+  resultWinner: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+  },
+  resultLabel: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 14,
+    color: Colors.light.textSecondary,
+  },
+  resultLabelLarge: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.light.text,
+  },
+  resultLoser: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+    color: Colors.light.textSecondary,
   },
   boardContainer: {
     alignItems: "center",

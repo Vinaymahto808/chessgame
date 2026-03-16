@@ -66,20 +66,22 @@ export function GamesProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const createGame = useCallback(async (whitePlayerName: string, blackPlayerName: string): Promise<Game> => {
-    const res = await fetch(`${API_BASE}/games`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ whitePlayerName, blackPlayerName }),
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Failed to create game");
-    }
-    const game = await res.json();
-    setGames((prev) => [...prev, game]);
-    return game;
-  }, []);
+  const createGame = useCallback(
+    async (whitePlayerName: string, blackPlayerName: string): Promise<Game> => {
+      const res = await fetch(`${API_BASE}/games`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whitePlayerName, blackPlayerName }),
+      });
+      const game = await res.json();
+      if (!res.ok) {
+        throw new Error(game.error || "Failed to create game");
+      }
+      setGames((prev) => [...prev, game]);
+      return game;
+    },
+    []
+  );
 
   const deleteGame = useCallback(async (gameId: string) => {
     const res = await fetch(`${API_BASE}/games/${gameId}`, {
@@ -92,28 +94,30 @@ export function GamesProvider({ children }: { children: ReactNode }) {
     setGames((prev) => prev.filter((g) => g.id !== gameId));
   }, []);
 
-  const makeMove = useCallback(async (
-    gameId: string,
-    from: string,
-    to: string,
-    promotion?: string
-  ): Promise<Game> => {
-    const body: Record<string, string> = { from, to };
-    if (promotion) body.promotion = promotion;
+  const makeMove = useCallback(
+    async (
+      gameId: string,
+      from: string,
+      to: string,
+      promotion?: string
+    ): Promise<Game> => {
+      const body: Record<string, string> = { from, to };
+      if (promotion) body.promotion = promotion;
 
-    const res = await fetch(`${API_BASE}/games/${gameId}/move`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || "Invalid move");
-    }
-    const updatedGame = await res.json();
-    setGames((prev) => prev.map((g) => (g.id === gameId ? updatedGame : g)));
-    return updatedGame;
-  }, []);
+      const res = await fetch(`${API_BASE}/games/${gameId}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const updatedGame = await res.json();
+      if (!res.ok) {
+        throw new Error(updatedGame.error || "Invalid move");
+      }
+      setGames((prev) => prev.map((g) => (g.id === gameId ? updatedGame : g)));
+      return updatedGame;
+    },
+    []
+  );
 
   const fetchMoves = useCallback(async (gameId: string): Promise<Move[]> => {
     const res = await fetch(`${API_BASE}/games/${gameId}/moves`);

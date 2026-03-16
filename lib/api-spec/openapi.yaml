@@ -1,15 +1,16 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Chess Game API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: games
+    description: Chess game operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,147 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /games:
+    get:
+      operationId: listGames
+      tags: [games]
+      summary: List all games
+      responses:
+        "200":
+          description: List of games
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Game"
+    post:
+      operationId: createGame
+      tags: [games]
+      summary: Create a new game
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGameRequest"
+      responses:
+        "201":
+          description: Game created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+  /games/{gameId}:
+    get:
+      operationId: getGame
+      tags: [games]
+      summary: Get a game by ID
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Game details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "404":
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteGame
+      tags: [games]
+      summary: Delete a game
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Game deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "404":
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /games/{gameId}/move:
+    post:
+      operationId: makeMove
+      tags: [games]
+      summary: Make a move in a game
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MakeMoveRequest"
+      responses:
+        "200":
+          description: Move made successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "400":
+          description: Invalid move
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /games/{gameId}/moves:
+    get:
+      operationId: getGameMoves
+      tags: [games]
+      summary: Get all moves for a game
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of moves
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Move"
+        "404":
+          description: Game not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -33,4 +175,116 @@ components:
           type: string
       required:
         - status
-
+    Game:
+      type: object
+      properties:
+        id:
+          type: string
+        whitePlayerName:
+          type: string
+        blackPlayerName:
+          type: string
+        fen:
+          type: string
+          description: FEN notation of current board state
+        status:
+          type: string
+          enum: [active, white_wins, black_wins, draw, stalemate]
+        currentTurn:
+          type: string
+          enum: [white, black]
+        moveCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - whitePlayerName
+        - blackPlayerName
+        - fen
+        - status
+        - currentTurn
+        - moveCount
+        - createdAt
+        - updatedAt
+    Move:
+      type: object
+      properties:
+        id:
+          type: string
+        gameId:
+          type: string
+        moveNumber:
+          type: integer
+        from:
+          type: string
+        to:
+          type: string
+        piece:
+          type: string
+        captured:
+          type: string
+          nullable: true
+        promotion:
+          type: string
+          nullable: true
+        san:
+          type: string
+          description: Standard Algebraic Notation
+        fen:
+          type: string
+          description: FEN after this move
+        createdAt:
+          type: string
+      required:
+        - id
+        - gameId
+        - moveNumber
+        - from
+        - to
+        - piece
+        - san
+        - fen
+        - createdAt
+    CreateGameRequest:
+      type: object
+      properties:
+        whitePlayerName:
+          type: string
+        blackPlayerName:
+          type: string
+      required:
+        - whitePlayerName
+        - blackPlayerName
+    MakeMoveRequest:
+      type: object
+      properties:
+        from:
+          type: string
+          description: "Source square (e.g. e2)"
+        to:
+          type: string
+          description: "Target square (e.g. e4)"
+        promotion:
+          type: string
+          nullable: true
+          description: "Promotion piece (q, r, b, n)"
+      required:
+        - from
+        - to
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success

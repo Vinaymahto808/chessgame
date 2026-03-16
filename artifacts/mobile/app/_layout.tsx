@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GamesProvider } from "@/context/GamesContext";
+import { LocalGameProvider } from "@/context/LocalGameContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,6 +27,14 @@ function RootLayoutNav() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="game/[id]"
+        options={{
+          headerShown: false,
+          presentation: "card",
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
+        name="local-game"
         options={{
           headerShown: false,
           presentation: "card",
@@ -59,7 +68,9 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <GamesProvider>
-                <RootLayoutNav />
+                <LocalGameProvider>
+                  <RootLayoutNav />
+                </LocalGameProvider>
               </GamesProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
